@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+
+{% block title %}Редактирование книги{% endblock %}
+
+{% block content %}
+<h2>Редактирование книги</h2>
+<form action="/edit_book/{{ book.id }}" method="POST">
+    <div class="mb-3">
+        <label for="title" class="form-label">Название:</label>
+        <input type="text" class="form-control" id="title" name="title" value="{{ book.title }}" required>
+    </div>
+    <div class="mb-3">
+        <label for="author" class="form-label">Автор:</label>
+        <input type="text" class="form-control" id="author" name="author" value="{{ book.author }}" required>
+    </div>
+    <div class="mb-3">
+        <label for="genre" class="form-label">Жанр:</label>
+        <input type="text" class="form-control" id="genre" name="genre" value="{{ book.genre }}" required>
+    </div>
+    <div class="mb-3">
+        <label for="quantity" class="form-label">Количество экземпляров:</label>
+        <input type="number" class="form-control" id="quantity" name="quantity" min="0" value="{{ book.quantity }}" required>
+    </div>
+    <button type="submit" class="btn btn-primary">Сохранить изменения</button>
+    <a href="{{ url_for('books') }}" class="btn btn-secondary">Отмена</a>
+</form>
+{% endblock %}

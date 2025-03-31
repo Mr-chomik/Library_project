@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+
+{% block title %}Мои книги{% endblock %}
+
+{% block content %}
+<h2>Мои книги</h2>
+<ul class="list-group">
+    {% for book in books %}
+        <li class="list-group-item">
+            <strong>{{ book.title }}</strong> — {{ book.author }} ({{ book.genre }})
+            <p><strong>Дата возврата:</strong> {{ book.return_by.strftime('%d.%m.%Y') }}</p>
+            {% if book.is_late %}
+                <p class="text-danger"><strong>Просрочено!</strong></p>
+            {% endif %}
+            <a href="/return/{{ book.id }}" class="btn btn-sm btn-primary">Вернуть книгу</a>
+        </li>
+    {% endfor %}
+</ul>
+{% endblock %}

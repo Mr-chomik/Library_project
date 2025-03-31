@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+
+{% block title %}Регистрация администратора{% endblock %}
+
+{% block content %}
+<h2>Регистрация администратора</h2>
+<form action="/register_admin" method="POST">
+    <div class="mb-3">
+        <label for="name" class="form-label">Имя:</label>
+        <input type="text" class="form-control" id="name" name="name" required>
+    </div>
+    <div class="mb-3">
+        <label for="username" class="form-label">Логин:</label>
+        <input type="text" class="form-control" id="username" name="username" required>
+    </div>
+    <div class="mb-3">
+        <label for="password" class="form-label">Пароль:</label>
+        <input type="password" class="form-control" id="password" name="password" required>
+    </div>
+    <div class="mb-3">
+        <label for="confirm_password" class="form-label">Подтвердите пароль:</label>
+        <input type="password" class="form-control" id="confirm_password" name="confirm_password" required>
+    </div>
+    <div class="mb-3">
+        <label for="admin_id" class="form-label">Специальный ID администратора:</label>
+        <input type="text" class="form-control" id="admin_id" name="admin_id" required>
+    </div>
+    <button type="submit" class="btn btn-primary">Зарегистрироваться как администратор</button>
+</form>
+<p class="mt-3 text-center">
+    Уже есть аккаунт? <a href="/login">Войти</a>
+</p>
+{% endblock %}

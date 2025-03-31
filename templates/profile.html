@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+
+{% block title %}Профиль пользователя{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="profile-card">
+        <h2>Профиль пользователя</h2>
+
+        <p class="card-text"><strong>Логин:</strong> {{ user.username }}</p>
+        {% if user.role == "reader" %}
+        <p class="card-text"><strong>Статус:</strong> читатель</p>
+        {% else %}
+        <p class="card-text"><strong>Статус:</strong> администратор</p>
+        {% endif %}
+        <p class="card-text"><strong>Рейтинг:</strong> {{ user.rating }}</p>
+        <p class="card-text"><strong>Максимальный срок взятия книг:</strong> {{ user.max_borrow_days }} дней</p>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+
+{% block title %}Главная страница{% endblock %}
+
+{% block content %}
+<h2>Доступные книги</h2>
+<ul class="book-list">
+    {% for book in books %}
+        <li class="book-item">
+            <h3>{{ book.title }}</h3>
+            <p><strong>Автор:</strong> {{ book.author }}</p>
+            <p><strong>Жанр:</strong> {{ book.genre }}</p>
+            <p><strong>Доступно:</strong> {{ book.quantity }} экземпляров</p>
+            {% if current_user.is_authenticated and current_user.role != "admin" %}
+                {% if book.quantity > 0 %}
+                    <a href="/borrow/{{ book.id }}" class="btn btn-sm btn-success">Взять книгу</a>
+                {% else %}
+                    <a href="#" class="btn btn-sm btn-secondary disabled">Нет в наличии</a>
+                {% endif %}
+            {% endif %}
+        </li>
+    {% endfor %}
+</ul>
+{% endblock %}
