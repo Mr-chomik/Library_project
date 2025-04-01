@@ -1,9 +1,9 @@
 {% extends "base.html" %}
 
-{% block title %}Каталог книг{% endblock %}
+{% block title %}Книги автора {{ author_name }}{% endblock %}
 
 {% block content %}
-<h2>Каталог книг</h2>
+<h2>Книги автора "{{ author_name }}"</h2>
 
 <ul class="book-list">
     {% if books %}
@@ -15,18 +15,15 @@
 
                 <div class="book-info">
                     <h3>{{ book.title }}</h3>
-                    <p><strong>Автор:</strong>
+                    <p><strong>Автор:</strong> 
                         <a href="{{ url_for('books_by_author', author_name=book.author) }}">{{ book.author }}</a>
                     </p>
                     <p><strong>Жанр:</strong> {{ book.genre }}</p>
                     <p><strong>Доступно:</strong> {{ book.quantity }} экземпляров</p>
 
                     {% if current_user.is_authenticated and current_user.role != "admin" %}
-                        {% if book.quantity > 0 %}
-                            <a href="/borrow/{{ book.id }}" class="btn btn-sm btn-success
-                                   {% if book.already_borrowed %}disabled{% endif %}">
-                                Взять книгу
-                            </a>
+                        {% if book.quantity > 0 and not book.already_borrowed %}
+                            <a href="/borrow/{{ book.id }}" class="btn btn-sm btn-success">Взять книгу</a>
                         {% else %}
                             <p class="text-danger"><strong>Нет в наличии</strong></p>
                         {% endif %}
@@ -43,7 +40,10 @@
             </li>
         {% endfor %}
     {% else %}
-        <li class="book-item">Книг не найдено.</li>
+        <li class="book-item">Книг данного автора нет в библиотеке.</li>
     {% endif %}
 </ul>
+
+<!-- Кнопка возврата в каталог -->
+<a href="{{ url_for('books') }}" class="btn btn-primary mt-3">Вернуться в каталог</a>
 {% endblock %}

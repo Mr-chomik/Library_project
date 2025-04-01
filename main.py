@@ -1,8 +1,10 @@
 from flask_login import LoginManager, login_user, logout_user, current_user, login_required
-from flask import Flask, render_template, request, redirect, url_for, flash
+from flask import Flask, render_template, request, redirect, url_for, flash, make_response
 from datetime import datetime, timedelta
 from sqlalchemy import or_
 import base64
+import schedule
+import time
 
 from data import db_session
 from data.users import User
@@ -56,9 +58,17 @@ def load_user(user_id):
 @login_required
 def home():
     db_sess = db_session.create_session()
+    borrowed_books = (db_sess.query(BorrowedBook).filter_by(user_id=current_user.id).all())
 
-    books_ = db_sess.query(Book).order_by(Book.id.desc()).limit(5).all()
+    tomorrow = datetime.utcnow() + timedelta(days=1)
+    for borrowed_book in borrowed_books:
+        if borrowed_book.return_by.date() == tomorrow.date():
+            if not request.cookies.get(f"reminder_{borrowed_book.id}"):
+                book = db_sess.query(Book).get(borrowed_book.book_id)
+                if book:
+                    flash(f"Напоминание: верните книгу '{book.title}' до {borrowed_book.return_by.strftime('%d.%m.%Y')}","info")
 
+    books_ = (db_sess.query(Book).order_by(Book.id.desc()).limit(3).all())
     books_params = []
     for book in books_:
         if book.image_data:
@@ -76,7 +86,17 @@ def home():
             'quantity': book.quantity,
             'image_url': image_url})
 
-    return render_template('home.html', books=books_params)
+    response = make_response(render_template('home.html', books=books_params))
+
+    db_sess = db_session.create_session()
+    borrowed_books = (
+        db_sess.query(BorrowedBook).filter_by(user_id=current_user.id).all())
+
+    for borrowed_book in borrowed_books:
+        if borrowed_book.return_by.date() == tomorrow.date():
+            response.set_cookie(f"reminder_{borrowed_book.id}", "true", max_age=86400)
+
+    return response
 
 
 @app.route('/login', methods=['GET', 'POST'])
@@ -234,26 +254,33 @@ def return_book(book_id):
 def my_books():
     db_sess = db_session.create_session()
 
-    borrowed_books = (
-        db_sess.query(BorrowedBook)
-        .filter_by(user_id=current_user.id)
-        .all()
-    )
+    borrowed_books = (db_sess.query(BorrowedBook).filter_by(user_id=current_user.id).all())
 
+    tomorrow = datetime.utcnow() + timedelta(days=1)
     books_info = []
     for borrowed_book in borrowed_books:
         book = db_sess.query(Book).get(borrowed_book.book_id)
         if book:
+            if borrowed_book.return_by.date() == tomorrow.date():
+                if not request.cookies.get(f"reminder_{borrowed_book.id}"):
+                    flash(f"Напоминание: верните книгу '{book.title}' до"
+                          f" {borrowed_book.return_by.strftime('%d.%m.%Y')}","info")
+
             books_info.append({
                 "id": book.id,
                 "title": book.title,
                 "author": book.author,
                 "genre": book.genre,
-                "return_by": borrowed_book.return_by,
-                "is_late": datetime.utcnow() > borrowed_book.return_by
-            })
+                "return_by": borrowed_book.return_by.strftime('%d.%m.%Y'),
+                "is_late": datetime.utcnow() > borrowed_book.return_by})
 
-    return render_template('my_books.html', books=books_info)
+    response = make_response(render_template('my_books.html', books=books_info))
+
+    for borrowed_book in borrowed_books:
+        if borrowed_book.return_by.date() == tomorrow.date():
+            response.set_cookie(f"reminder_{borrowed_book.id}", "true", max_age=86400)
+
+    return response
 
 
 @app.route('/add_book', methods=['GET', 'POST'])
@@ -396,7 +423,7 @@ def books():
             mimetype = "image/jpeg" if book.image_data.startswith(b'\xff\xd8\xff') else "image/png"
             image_url = f"data:{mimetype};base64,{image_base64}"
         else:
-            image_url = url_for('static', filename='images/default-book.png')
+            image_url = url_for('static', filename='images/no_photo.png')
 
         books_params.append({
             'id': book.id,
@@ -409,6 +436,37 @@ def books():
 
     return render_template('books.html', books=books_params, search_query=search_query, genres=GENRES,
                            selected_genres=selected_genres)
+
+
+@app.route('/author/<string:author_name>')
+@login_required
+def books_by_author(author_name):
+    db_sess = db_session.create_session()
+
+    books_ = (db_sess.query(Book).filter(Book.author.ilike(f"%{author_name}%")).all())
+
+    if not books_:
+        flash("Книги данного автора не найдены!", "info")
+
+    books_params = []
+    for book in books_:
+        if book.image_data:
+            image_base64 = base64.b64encode(book.image_data).decode('utf-8')
+            mimetype = "image/jpeg" if book.image_data.startswith(b'\xff\xd8\xff') else "image/png"
+            image_url = f"data:{mimetype};base64,{image_base64}"
+        else:
+            image_url = url_for('static', filename='images/default-book.png')
+
+        books_params.append({
+            'id': book.id,
+            'title': book.title,
+            'author': book.author,
+            'genre': book.genre,
+            'quantity': book.quantity,
+            'image_url': image_url
+        })
+
+    return render_template('books_by_author.html', books=books_params, author_name=author_name)
 
 
 @app.route('/profile')

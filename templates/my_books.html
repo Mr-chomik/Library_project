@@ -8,7 +8,7 @@
     {% for book in books %}
         <li class="list-group-item">
             <strong>"{{ book.title }}"</strong> — {{ book.author }} ({{ book.genre }})
-            <p><strong>Срок возврата:</strong> до {{ book.return_by.strftime('%d.%m.%Y')}}</p>
+            <p><strong>Срок возврата:</strong> до {{ book.return_by}}</p>
             {% if book.is_late %}
                 <p class="text-danger"><strong>Просрочено!</strong></p>
             {% endif %}
