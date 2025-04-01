@@ -1,22 +1,48 @@
-from flask import Flask, render_template, request, redirect, url_for, flash
 from flask_login import LoginManager, login_user, logout_user, current_user, login_required
+from flask import Flask, render_template, request, redirect, url_for, flash
 from datetime import datetime, timedelta
-import os
-
+from sqlalchemy import or_
+import base64
 
 from data import db_session
 from data.users import User
 from data.books import Book
 from data.borrowed_book import BorrowedBook
+from helping_functions import optimize_image, load_admin_ids, calculate_max_borrow_days
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'secret_key'
+app.config['SECRET_KEY'] = 'real_secret_key'
+app.config['MAX_CONTENT_LENGTH'] = 2 * 1024 * 1024
 
 db_session.global_init("db/library.db")
 
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'
+
+GENRES = ['Все', 'Антиутопия', 'Апокалиптика', 'Басня', 'Военная проза', 'Детектив', 'Детская литература', 'Драма',
+          'Историческая проза', 'Исторический жанр', 'Комедия', 'Криминальный жанр', 'Научная фантастика', 'Повесть',
+          'Политическая фантастика', 'Постапокалиптика', 'Психологический реализм', 'Роман', 'Роман в стихах', 'Сатира',
+          'Фантастика', 'Фикшн', 'Философия']
+
+
+def update_rating(user, borrowed_book):
+    if borrowed_book.borrowed_at.date() == datetime.utcnow().date():
+        flash("Вы не можете повысить свой рейтинг при сдаче книги в день ее получения!", "info")
+        return
+
+    is_late = datetime.utcnow() > borrowed_book.return_by
+
+    if is_late:
+        user.rating -= 30
+    else:
+        user.rating += 20
+
+    user.max_borrow_days = calculate_max_borrow_days(user.rating)
+
+    db_sess = db_session.create_session()
+    db_sess.merge(user)
+    db_sess.commit()
 
 
 @login_manager.user_loader
@@ -30,8 +56,27 @@ def load_user(user_id):
 @login_required
 def home():
     db_sess = db_session.create_session()
-    books = db_sess.query(Book).all()
-    return render_template('index.html', books=books)
+
+    books_ = db_sess.query(Book).order_by(Book.id.desc()).limit(5).all()
+
+    books_params = []
+    for book in books_:
+        if book.image_data:
+            image_base64 = base64.b64encode(book.image_data).decode('utf-8')
+            mimetype = "image/jpeg" if book.image_data.startswith(b'\xff\xd8\xff') else "image/png"
+            image_url = f"data:{mimetype};base64,{image_base64}"
+        else:
+            image_url = url_for('static', filename='images/default-book.png')
+
+        books_params.append({
+            'id': book.id,
+            'title': book.title,
+            'author': book.author,
+            'genre': book.genre,
+            'quantity': book.quantity,
+            'image_url': image_url})
+
+    return render_template('home.html', books=books_params)
 
 
 @app.route('/login', methods=['GET', 'POST'])
@@ -69,7 +114,7 @@ def register():
             flash("Логин уже занят!", "error")
             return redirect(url_for('register'))
 
-        new_user = User(name=name, username=username, password=password, role="reader", rating=100, max_borrow_days=14)
+        new_user = User(name=name, username=username, password=password, role="reader", rating=100, max_borrow_days=56)
         db_sess.add(new_user)
         db_sess.commit()
 
@@ -102,7 +147,7 @@ def register_admin():
             flash("Неверный ID администратора!", "error")
             return redirect(url_for('register_admin'))
 
-        new_admin = User(name=name, username=username, password=password, role="admin", rating=100, max_borrow_days=14)
+        new_admin = User(name=name, username=username, password=password, role="admin", rating=100, max_borrow_days=56)
         db_sess.add(new_admin)
         db_sess.commit()
 
@@ -110,17 +155,6 @@ def register_admin():
         return redirect(url_for('login'))
 
     return render_template('register_admin.html')
-
-
-def load_admin_ids():
-    admin_ids = []
-    file_path = os.path.join(os.path.dirname(__file__), 'admin_ids.txt')
-
-    if os.path.exists(file_path):
-        with open(file_path, 'r') as f:
-            admin_ids = [line.strip() for line in f.readlines() if line.strip()]
-
-    return admin_ids
 
 
 @app.route('/logout')
@@ -145,11 +179,21 @@ def borrow_book(book_id):
         flash("Книга недоступна!", "error")
         return redirect(url_for('home'))
 
+    borrowed_book = (db_sess.query(BorrowedBook).filter_by(user_id=current_user.id, book_id=book_id).first())
+
+    if borrowed_book:
+        flash("У вас уже есть эта книга!", "error")
+        return redirect(url_for('home'))
+
     book.quantity -= 1
+
     return_by = datetime.utcnow() + timedelta(days=current_user.max_borrow_days)
 
-    borrowed_book = BorrowedBook(user_id=current_user.id, book_id=book_id, return_by=return_by)
-    db_sess.add(borrowed_book)
+    new_borrowed_book = BorrowedBook(
+        user_id=current_user.id,
+        book_id=book_id,
+        return_by=return_by)
+    db_sess.add(new_borrowed_book)
     db_sess.commit()
 
     flash("Вы успешно взяли книгу!", "success")
@@ -171,10 +215,13 @@ def return_book(book_id):
         flash("Книга не найдена!", "error")
         return redirect(url_for('home'))
 
-    is_late = datetime.utcnow() > borrowed_book.return_by
-    update_rating(current_user, is_late)
+    # Возвращаем книгу в библиотеку
+    book.quantity += 1  # Увеличиваем количество доступных экземпляров
 
-    book.quantity += 1
+    # Обновляем рейтинг пользователя
+    update_rating(current_user, borrowed_book)  # Передаем объект borrowed_book
+
+    # Удаляем запись о взятой книге
     db_sess.delete(borrowed_book)
     db_sess.commit()
 
@@ -209,42 +256,6 @@ def my_books():
     return render_template('my_books.html', books=books_info)
 
 
-def update_rating(user, is_late):
-    if is_late:
-        user.rating -= 20
-    else:
-        user.rating += 10
-
-    user.max_borrow_days = calculate_max_borrow_days(user.rating)
-
-
-def calculate_max_borrow_days(rating):
-    if rating < 20:
-        return 28
-    elif rating < 50:
-        return 35
-    elif rating < 80:
-        return 42
-    elif rating < 100:
-        return 49
-    elif rating < 150:
-        return 56
-    elif rating < 200:
-        return 63
-    elif rating < 250:
-        return 70
-    elif rating < 300:
-        return 77
-    elif rating < 350:
-        return 84
-    elif rating < 400:
-        return 91
-    elif rating < 450:
-        return 98
-    else:
-        return 105
-
-
 @app.route('/add_book', methods=['GET', 'POST'])
 @login_required
 def add_book():
@@ -258,13 +269,29 @@ def add_book():
         genre = request.form.get('genre')
         quantity = int(request.form.get('quantity', 1))
 
+        file = request.files.get('image')
+        if file and file.filename:
+            try:
+                image_data = optimize_image(file)
+            except Exception as e:
+                flash(f"Ошибка чтения изображения: {e}", "error")
+                image_data = None
+        else:
+            image_data = None
+
         db_sess = db_session.create_session()
-        new_book = Book(title=title, author=author, genre=genre, quantity=quantity)
+        new_book = Book(
+            title=title,
+            author=author,
+            genre=genre,
+            quantity=quantity,
+            image_data=image_data
+        )
         db_sess.add(new_book)
         db_sess.commit()
 
         flash("Книга успешно добавлена!", "success")
-        return redirect(url_for('home'))
+        return redirect(url_for('books'))
 
     return render_template('add_book.html')
 
@@ -338,13 +365,50 @@ def delete_all_books(book_id):
     return redirect(url_for('books'))
 
 
-@app.route('/books')
+@app.route('/books', methods=['GET'])
 @login_required
 def books():
     db_sess = db_session.create_session()
-    books_ = db_sess.query(Book).all()
 
-    return render_template('books.html', books=books_)
+    search_query = request.args.get('search', '').strip()
+    selected_genres = request.args.getlist('genre')
+
+    query = db_sess.query(Book)
+
+    if search_query:
+        query = query.filter(
+            (Book.title.ilike(f"%{search_query}%")) |
+            (Book.author.ilike(f"%{search_query}%"))
+        )
+
+    if selected_genres and "all" not in selected_genres:
+        conditions = [Book.genre.like(f"%{genre}%") for genre in selected_genres]
+        query = query.filter(or_(*conditions))
+
+    books_ = query.all()
+
+    books_params = []
+    for book in books_:
+        already_borrowed = (db_sess.query(BorrowedBook).filter_by(user_id=current_user.id, book_id=book.id).first() is not None)
+
+        if book.image_data:
+            image_base64 = base64.b64encode(book.image_data).decode('utf-8')
+            mimetype = "image/jpeg" if book.image_data.startswith(b'\xff\xd8\xff') else "image/png"
+            image_url = f"data:{mimetype};base64,{image_base64}"
+        else:
+            image_url = url_for('static', filename='images/default-book.png')
+
+        books_params.append({
+            'id': book.id,
+            'title': book.title,
+            'author': book.author,
+            'genre': book.genre,
+            'quantity': book.quantity,
+            'image_url': image_url,
+            'already_borrowed': already_borrowed})
+
+    return render_template('books.html', books=books_params, search_query=search_query, genres=GENRES,
+                           selected_genres=selected_genres)
 
 
 @app.route('/profile')

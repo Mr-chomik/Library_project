@@ -4,26 +4,74 @@
 
 {% block content %}
 <h2>Каталог книг</h2>
+
+<!-- Форма поиска -->
+<form action="/books" method="GET" class="mb-3">
+    <div class="input-group">
+        <input type="text" class="form-control" name="search" placeholder="Поиск по названию или автору..." value="{{ search_query }}">
+        <button type="submit" class="btn btn-primary">Поиск</button>
+    </div>
+</form>
+
+<!-- Выбор жанров -->
+<form action="/books" method="GET" class="mb-3">
+    <div class="genre-filters">
+        <!-- Создаем сетку из чекбоксов -->
+        <div class="genre-grid">
+            <div class="form-check form-check-inline">
+                <input class="form-check-input" type="checkbox" id="all-genres" name="genre" value="all"
+                       {% if 'all' in selected_genres or not selected_genres %}checked{% endif %}>
+                <label class="form-check-label" for="all-genres">Все жанры</label>
+            </div>
+            {% for genre in genres[1:] %}
+                <div class="form-check form-check-inline">
+                    <input class="form-check-input" type="checkbox" id="genre-{{ loop.index }}" name="genre" value="{{ genre }}"
+                           {% if genre in selected_genres %}checked{% endif %}>
+                    <label class="form-check-label" for="genre-{{ loop.index }}">{{ genre }}</label>
+                </div>
+            {% endfor %}
+        </div>
+        <button type="submit" class="btn btn-sm btn-primary mt-2">Применить фильтр</button>
+    </div>
+</form>
+
+<!-- Список книг -->
 <ul class="book-list">
     {% if books %}
         {% for book in books %}
             <li class="book-item">
-                <h3>{{ book.title }}</h3>
-                <p><strong>Автор:</strong> {{ book.author }}</p>
-                <p><strong>Жанр:</strong> {{ book.genre }}</p>
-                <p><strong>Доступно:</strong> {{ book.quantity }} экземпляров</p>
+                <!-- Изображение книги -->
+                <div class="book-image-container">
+                    <img src="{{ book.image_url }}" alt="{{ book.title }}" class="book-image">
+                </div>
 
-                {% if current_user.is_authenticated and current_user.role == "admin" %}
-                    <div class="btn-group" role="group">
-                        <a href="/edit_book/{{ book.id }}" class="btn btn-sm btn-admin-edit">Редактировать</a>
-                        <a href="/remove_one_book/{{ book.id }}" class="btn btn-sm btn-admin-remove-instance" onclick="return confirm('Вы уверены, что хотите удалить экземпляр книги?')">Удалить экземпляр</a>
-                        <a href="/delete_all_books/{{ book.id }}" class="btn btn-sm btn-admin-delete-full" onclick="return confirm('Вы уверены, что хотите полностью удалить книгу?')">Удалить книгу</a>
-                    </div>
-                {% endif %}
+                <!-- Информация о книге -->
+                <div class="book-info">
+                    <h3>{{ book.title }}</h3>
+                    <p><strong>Автор:</strong> {{ book.author }}</p>
+                    <p><strong>Жанр:</strong> {{ book.genre }}</p>
+                    <p><strong>Доступно:</strong> {{ book.quantity }} экземпляров</p>
+
+                    {% if current_user.is_authenticated and current_user.role != "admin" %}
+                        {% if book.quantity > 0 and not book.already_borrowed %}
+                            <a href="/borrow/{{ book.id }}" class="btn btn-sm btn-success">Взять книгу</a>
+                        {% else %}
+                            <p class="text-danger"><strong>Нет в наличии</strong></p>
+                        {% endif %}
+                    {% endif %}
+
+                    {% if current_user.is_authenticated and current_user.role == "admin" %}
+                        <div class="btn-group" role="group">
+                            <a href="/edit_book/{{ book.id }}" class="btn btn-sm btn-admin-edit">Редактировать</a>
+                            <a href="/remove_one_book/{{ book.id }}" class="btn btn-sm btn-admin-remove-instance" onclick="return confirm('Вы уверены, что хотите удалить экземпляр книги?')">Удалить экземпляр</a>
+                            <a href="/delete_all_books/{{ book.id }}" class="btn btn-sm btn-admin-delete-full" onclick="return confirm('Вы уверены, что хотите полностью удалить книгу?')">Удалить книгу</a>
+                        </div>
+                    {% endif %}
+                </div>
             </li>
         {% endfor %}
     {% else %}
-        <li class="book-item">В библиотеке пока нет книг.</li>
+        <li class="book-item">Книг не найдено.</li>
     {% endif %}
 </ul>
 {% endblock %}

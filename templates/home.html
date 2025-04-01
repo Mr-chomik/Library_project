@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+
+{% block title %}Главная страница{% endblock %}
+
+{% block content %}
+<h2>Новинки</h2>
+
+<ul class="book-list">
+    {% if books %}
+        {% for book in books %}
+            <li class="book-item">
+                <div class="book-image-container">
+                    <img src="{{ book.image_url }}" alt="{{ book.title }}" class="book-image">
+                </div>
+
+                <div class="book-info">
+                    <h3>{{ book.title }}</h3>
+                    <p><strong>Автор:</strong> {{ book.author }}</p>
+                    <p><strong>Жанр:</strong> {{ book.genre }}</p>
+                    <p><strong>Доступно:</strong> {{ book.quantity }} экземпляров</p>
+                </div>
+            </li>
+        {% endfor %}
+    {% else %}
+        <li class="book-item">Книг не найдено.</li>
+    {% endif %}
+</ul>
+
+<a href="{{ url_for('books') }}" class="btn btn-primary mt-3">Перейти к каталогу</a>
+{% endblock %}

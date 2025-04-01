@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String
+from sqlalchemy import Column, Integer, String, BLOB
 from data.db_session import SqlAlchemyBase
 
 
@@ -10,3 +10,4 @@ class Book(SqlAlchemyBase):
     author = Column(String, nullable=False)
     genre = Column(String, nullable=False)
     quantity = Column(Integer, default=1)
+    image_data = Column(BLOB, nullable=True)

@@ -7,8 +7,8 @@
 <ul class="list-group">
     {% for book in books %}
         <li class="list-group-item">
-            <strong>{{ book.title }}</strong> — {{ book.author }} ({{ book.genre }})
-            <p><strong>Дата возврата:</strong> {{ book.return_by.strftime('%d.%m.%Y') }}</p>
+            <strong>"{{ book.title }}"</strong> — {{ book.author }} ({{ book.genre }})
+            <p><strong>Срок возврата:</strong> до {{ book.return_by.strftime('%d.%m.%Y')}}</p>
             {% if book.is_late %}
                 <p class="text-danger"><strong>Просрочено!</strong></p>
             {% endif %}
@@ -16,4 +16,13 @@
         </li>
     {% endfor %}
 </ul>
+
+<footer class="mt-4 text-muted">
+    <div class="container text-center">
+        <p>
+            При возврате книги в тот же день, когда она была взята, рейтинг не увеличивается.
+        </p>
+    </div>
+</footer>
+
 {% endblock %}

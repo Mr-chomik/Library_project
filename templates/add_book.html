@@ -4,7 +4,7 @@
 
 {% block content %}
 <h2>Добавление книги</h2>
-<form action="/add_book" method="POST">
+<form action="/add_book" method="POST" enctype="multipart/form-data">
     <div class="mb-3">
         <label for="title" class="form-label">Название:</label>
         <input type="text" class="form-control" id="title" name="title" required>
@@ -19,8 +19,13 @@
     </div>
     <div class="mb-3">
         <label for="quantity" class="form-label">Количество экземпляров:</label>
-        <input type="number" class="form-control" id="quantity" name="quantity" min="1" value="1" required>
+        <input type="number" class="form-control" id="quantity" name="quantity" min="0" value="1" required>
+    </div>
+    <div class="mb-3">
+        <label for="image" class="form-label">Изображение книги:</label>
+        <input type="file" class="form-control" id="image" name="image" accept="image/*">
     </div>
     <button type="submit" class="btn btn-primary">Добавить книгу</button>
+    <a href="{{ url_for('books') }}" class="btn btn-secondary">Отмена</a>
 </form>
 {% endblock %}
