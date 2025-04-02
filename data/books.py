@@ -1,8 +1,10 @@
 from sqlalchemy import Column, Integer, String, BLOB
+from sqlalchemy_serializer import SerializerMixin
+
 from data.db_session import SqlAlchemyBase
 
 
-class Book(SqlAlchemyBase):
+class Book(SqlAlchemyBase, SerializerMixin):
     __tablename__ = 'books'
 
     id = Column(Integer, primary_key=True, autoincrement=True)

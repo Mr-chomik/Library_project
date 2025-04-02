@@ -1,11 +1,11 @@
 from flask_login import LoginManager, login_user, logout_user, current_user, login_required
 from flask import Flask, render_template, request, redirect, url_for, flash, make_response
 from datetime import datetime, timedelta
+from flask_restful import Api
 from sqlalchemy import or_
 import base64
-import schedule
-import time
 
+import book_resources
 from data import db_session
 from data.users import User
 from data.books import Book
@@ -13,6 +13,11 @@ from data.borrowed_book import BorrowedBook
 from helping_functions import optimize_image, load_admin_ids, calculate_max_borrow_days
 
 app = Flask(__name__)
+api = Api(app)
+
+api.add_resource(book_resources.BooksListResource, '/api/v1/books')
+api.add_resource(book_resources.BookResource, '/api/v1/book/<int:book_id>')
+
 app.config['SECRET_KEY'] = 'real_secret_key'
 app.config['MAX_CONTENT_LENGTH'] = 2 * 1024 * 1024
 
