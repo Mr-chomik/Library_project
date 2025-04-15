@@ -13,3 +13,4 @@ class User(SqlAlchemyBase, UserMixin):
     role = Column(String, default="reader")
     rating = Column(Integer, default=100)
     max_borrow_days = Column(Integer, default=56)
+    telegram_id = Column(Integer, nullable=True)
