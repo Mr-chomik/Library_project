@@ -3,7 +3,9 @@ from flask import Flask, render_template, request, redirect, url_for, flash, mak
 from datetime import datetime, timedelta
 from flask_restful import Api
 from sqlalchemy import or_
+from dotenv import load_dotenv
 import base64
+import os
 
 import book_resources
 from data import db_session
@@ -12,13 +14,20 @@ from data.books import Book
 from data.borrowed_book import BorrowedBook
 from helping_functions import optimize_image, load_admin_ids, calculate_max_borrow_days
 
+load_dotenv()
+
 app = Flask(__name__)
 api = Api(app)
 
 api.add_resource(book_resources.BooksListResource, '/api/v1/books')
 api.add_resource(book_resources.BookResource, '/api/v1/book/<int:book_id>')
 
-app.config['SECRET_KEY'] = 'real_secret_key'
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///db/library.db")
+app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
+
+SECRET_KEY = os.getenv("SECRET_KEY")
+app.config['SECRET_KEY'] = SECRET_KEY
+
 app.config['MAX_CONTENT_LENGTH'] = 2 * 1024 * 1024
 
 db_session.global_init("db/library.db")

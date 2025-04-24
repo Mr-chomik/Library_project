@@ -3,3 +3,6 @@ SQLAlchemy
 requests
 APScheduler
 pillow
+Flask-Login
+Flask-RESTful
+python-dotenv
