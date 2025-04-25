@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 from flask_restful import Api
 from sqlalchemy import or_
 from dotenv import load_dotenv
+import logging
 import base64
 import os
 
@@ -14,21 +15,28 @@ from data.books import Book
 from data.borrowed_book import BorrowedBook
 from helping_functions import optimize_image, load_admin_ids, calculate_max_borrow_days
 
+
+logging.basicConfig(
+    filename='website.log',
+    level=logging.INFO,
+    format='%(asctime)s %(levelname)s %(name)s %(message)s')
+
 load_dotenv()
 
 app = Flask(__name__)
-api = Api(app)
 
-api.add_resource(book_resources.BooksListResource, '/api/v1/books')
-api.add_resource(book_resources.BookResource, '/api/v1/book/<int:book_id>')
-
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///db/library.db")
+DATABASE_URL = os.getenv("DATABASE_URL")
 app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
 
 SECRET_KEY = os.getenv("SECRET_KEY")
 app.config['SECRET_KEY'] = SECRET_KEY
 
 app.config['MAX_CONTENT_LENGTH'] = 2 * 1024 * 1024
+
+api = Api(app)
+
+api.add_resource(book_resources.BooksListResource, '/api/v1/books')
+api.add_resource(book_resources.BookResource, '/api/v1/book/<int:book_id>')
 
 db_session.global_init("db/library.db")
 
@@ -418,8 +426,8 @@ def books():
 
     if search_query:
         query = query.filter(
-            (Book.title.ilike(f"%{search_query}%")) |
-            (Book.author.ilike(f"%{search_query}%"))
+            (Book.title.ilike(f"%{search_query.capitalize()}%")) |
+            (Book.author.ilike(f"%{search_query.capitalize()}%"))
         )
 
     if selected_genres and "all" not in selected_genres:

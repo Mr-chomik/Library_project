@@ -5,14 +5,47 @@
 {% block content %}
 <h2>Каталог книг</h2>
 
+<!-- Форма поиска -->
+<form action="/books" method="GET" class="mb-3">
+    <div class="input-group">
+        <input type="text" class="form-control" name="search" placeholder="Поиск по названию или автору..." value="{{ search_query }}">
+        <button type="submit" class="btn btn-primary">Поиск</button>
+    </div>
+</form>
+
+<!-- Выбор жанров -->
+<form action="/books" method="GET" class="mb-3">
+    <div class="genre-filters">
+        <!-- Создаем сетку из чекбоксов -->
+        <div class="genre-grid">
+            <div class="form-check form-check-inline">
+                <input class="form-check-input" type="checkbox" id="all-genres" name="genre" value="all"
+                       {% if 'all' in selected_genres or not selected_genres %}checked{% endif %}>
+                <label class="form-check-label" for="all-genres">Все жанры</label>
+            </div>
+            {% for genre in genres[1:] %}
+                <div class="form-check form-check-inline">
+                    <input class="form-check-input" type="checkbox" id="genre-{{ loop.index }}" name="genre" value="{{ genre }}"
+                           {% if genre in selected_genres %}checked{% endif %}>
+                    <label class="form-check-label" for="genre-{{ loop.index }}">{{ genre }}</label>
+                </div>
+            {% endfor %}
+        </div>
+        <button type="submit" class="btn btn-sm btn-primary mt-2">Применить фильтр</button>
+    </div>
+</form>
+
+<!-- Список книг -->
 <ul class="book-list">
     {% if books %}
         {% for book in books %}
             <li class="book-item">
+                <!-- Изображение книги -->
                 <div class="book-image-container">
                     <img src="{{ book.image_url }}" alt="{{ book.title }}" class="book-image">
                 </div>
 
+                <!-- Информация о книге -->
                 <div class="book-info">
                     <h3>{{ book.title }}</h3>
                     <p><strong>Автор:</strong>

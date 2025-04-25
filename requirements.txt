@@ -6,3 +6,5 @@ pillow
 Flask-Login
 Flask-RESTful
 python-dotenv
+sqlalchemy_serializer
+aiogram
