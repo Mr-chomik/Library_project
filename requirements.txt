@@ -7,4 +7,4 @@ Flask-Login
 Flask-RESTful
 python-dotenv
 sqlalchemy_serializer
-aiogram
+aiogram==2.25.1
